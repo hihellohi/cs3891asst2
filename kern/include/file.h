@@ -26,8 +26,10 @@ struct descriptor {
 struct open_file {
 	struct vnode *v_ptr;
 	struct uio *f_ptr;
-}
+};
 
-struct open_file **open_files;
+struct open_file *open_files[OPEN_TOTAL_MAX];
+
+void file_bootstrap(void);
 
 #endif /* _FILE_H_ */
