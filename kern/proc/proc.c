@@ -48,6 +48,7 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <limits.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -71,6 +72,11 @@ proc_create(const char *name)
 	if (proc->p_name == NULL) {
 		kfree(proc);
 		return NULL;
+	}
+
+	proc->descriptor_table = kmalloc(sizeof(struct descriptor*) * OPEN_MAX);
+	if(proc->descriptor_table == NULL) {
+		panic("out of memory");
 	}
 
 	proc->p_numthreads = 0;
