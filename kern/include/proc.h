@@ -41,7 +41,7 @@
 struct addrspace;
 struct thread;
 struct vnode;
-struct descriptor;
+struct open_file;
 
 /*
  * Process structure.
@@ -65,7 +65,7 @@ struct proc {
 	struct spinlock p_lock;		/* Lock for this structure */
 	unsigned p_numthreads;		/* Number of threads in this process */
 
-	struct descriptor **descriptor_table;
+	struct open_file **descriptor_table;
 
 	/* VM */
 	struct addrspace *p_addrspace;	/* virtual address space */

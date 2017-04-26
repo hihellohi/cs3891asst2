@@ -17,12 +17,6 @@ struct vnode;
  * Put your function declarations and data types here ...
  */
 
-struct descriptor {
-	int descriptor_number;
-	struct open_file *file;
-};
-
-
 struct open_file {
 	struct vnode *v_ptr;
 	struct uio *f_ptr;

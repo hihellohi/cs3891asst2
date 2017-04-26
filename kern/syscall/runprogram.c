@@ -58,6 +58,7 @@ runprogram(char *progname)
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
 	int result;
+	userptr_t con1[] = "con:", con2[] = "con:";
 
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);
@@ -78,6 +79,12 @@ runprogram(char *progname)
 	/* Switch to it and activate it. */
 	proc_setas(as);
 	as_activate();
+
+	int result;
+	sys_open(con1, O_WRONLY, (userptr_t*)&result); 
+	KASSERT(result == 1);
+	sys_open(con2, O_WRONLY, (userptr_t*)&result); 
+	KASSERT(result == 2);
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);
