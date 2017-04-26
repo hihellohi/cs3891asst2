@@ -19,3 +19,10 @@
  * Add your file-related functions here ...
  */
 
+int sys_open(userptr_t filename, int flags){
+	(void)filename;
+	(void)flags;
+	panic("delete me");
+
+	return 0;
+}
