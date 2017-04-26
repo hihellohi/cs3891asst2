@@ -15,6 +15,14 @@
  * Put your function declarations and data types here ...
  */
 
+struct vnode;
 
+
+struct open_file {
+	struct vnode *v_ptr;
+	struct uio *f_ptr;
+}
+
+struct open_file **open_files;
 
 #endif /* _FILE_H_ */

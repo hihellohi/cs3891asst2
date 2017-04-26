@@ -19,7 +19,7 @@
  * Add your file-related functions here ...
  */
 
-int sys_open(userptr_t filename, int flags, userptr_t *ret){
+int sys_open(userptr_t filename, int flags, userptr_t *ret) {
 	(void)filename;
 	(void)flags;
 	(void)ret;
@@ -27,3 +27,8 @@ int sys_open(userptr_t filename, int flags, userptr_t *ret){
 
 	return 0;
 }
+
+void file_bootstrap(void) {
+	return;
+}
+

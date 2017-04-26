@@ -4,6 +4,7 @@ defs.mk
 kern/compile/*
 user/testbin/randcall/calls.c
 TAGS
+tags
 .svn/*
 *.swp
 
