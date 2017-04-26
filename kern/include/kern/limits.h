@@ -89,6 +89,7 @@
  * at 32. A more reasonable number is 128.
  */
 #define __OPEN_MAX      32
+#define __OPEN_TOTAL_MAX 128
 
 /* Max bytes for atomic pipe I/O -- see description in the pipe() man page */
 #define __PIPE_BUF      512
