@@ -36,3 +36,8 @@ int sys_close(int file) {
 
 	return 0;
 }
+
+void file_bootstrap(void) {
+	return;
+}
+
