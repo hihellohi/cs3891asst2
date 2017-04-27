@@ -1,7 +1,72 @@
-Place your design document here.
-
-The basic requirement of the assignment was to implement per process file descriptor tables with a global open file table.  The implementation of the per process file descriptor tables was done by adding a reference to a table in the process structure.  Thus we are able to access each process' fd table through curproc.  The table itself is simply an array of pointers to entries in the global open file table and new slots are assigned through a linear search.
+The basic requirement of the assignment was to implement per process file
+descriptor tables with a global open file table.  The implementation of
+the per process file descriptor tables was done by adding a reference
+to a table in the process structure.  Thus we are able to access each
+process' fd table through curproc.  The table itself is simply an array
+of pointers to entries in the global open file table and new slots are
+assigned through a linear search for empty slots.
 
 The entries of the global open file table contained:
- - a reference to the vnode that was acquired from the vfs
- - a lock for mutual exclusion when writing
+ - a reference to the vnode that was acquired from the vfs 
+ - a lock for mutual exclusion when reading and writing
+  - This would protect against two entries writing at once and also
+  prevents two reads from messing with the offset file pointer
+ - a file pointer to keep track of the current offset 
+ - flags that this file was opened with 
+ - number of handles that reference this entry
+
+struct open_file {
+	struct vnode *v_ptr; struct lock *lock_ptr;
+    off_t offset; int open_flags;
+	int references;
+};
+
+For the implementation of the global file table, we decided to not keep
+the entries in any data structure but leave them in the kernel heap. We
+made this decision since we found that there was no need to keep the
+entries in a structure (which would unnecessarily complicate the code)
+if we simply keep references to them in the file descriptor tables.
+
+sys_close For this function we had to consider what would happen if
+sys_close was called on a descriptor that had been cloned (whether by
+fork() or dup2()). Since we need to free all the memory allocations
+only when we delete the last reference, we decided to keep a count of
+references on the open_file data structure, only freeing the memory when
+it reached 0. Some considerations based on concurrency also needed to
+be made since if two processes had descriptors that point to the same
+open_file, we could potentially have memory leaks.
+
+sys_dup2 This function simply (after error checking) copied the
+reference in oldfd to newfd, calling sys_close on newfd if it was already
+populated. We also increment the reference counter, taking concurrency
+into account.
+
+sys_open This function essentially passes most of the work off to vfs_open
+and creates the new open_file entry in the process descriptor table
+(creates the lock, initializes offset to 0 etc.)  One thing that needed
+to be done to prevent security issues with the userptr to the filename
+is we used copyinstr to transfer the filename into kernel memory safely
+before passing to vfs_open. We also check the userptr filename isn’t
+NULL first. We also reuse most of the code used by this function to bind
+STDOUT and STDERR to the 2 and 3 descriptors respectively.
+
+sys_read We first do some user input checking like checking the file
+hasn’t been opened in O_WRONLY mode. We then acquire the open file lock
+and create a uio in UIO_USERSPACE and UIO_READ mode and pass this to
+vop_read with the open file pointer to read the data directly into the
+userptr buffer safely. We then calculate the amount read by subtracting
+the initial file offset before reading from the new offset returned by the
+uio. The reading is done with the lock acquired to prevent concurrency
+issues with multiple processes reading the same open file and advancing
+the offset file pointer.
+
+sys_write Write is essentially the mirror of read e.g., call vop_write
+instead and initialize the UIO in UIO_WRITE mode, check that file hasn’t
+been opened in O_RDONLY mode.
+
+sys_lseek This system call required more than 4 registers, since the 2nd
+argument was a 64 bit value, causing the argument to be assigned to a2
+and a3. This subsequently required us to fetch the last argument from
+the user stack. The implementation of the function is (besides error
+checking), modifying the offset field in the open_file entry, taking
+concurrency into account.
