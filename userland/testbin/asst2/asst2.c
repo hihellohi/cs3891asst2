@@ -52,8 +52,7 @@ main(int argc, char * argv[])
         close(fd);
 
         printf("**********\n* opening old file \"test.file\"\n");
-        fd = open("test.file", O_RDONLY);
-		fd = dup2(fd, 3);
+        fd = open("test1.file", O_RDONLY);
         printf("* open() got fd %d\n", fd);
         if (fd < 0) {
                 printf("ERROR opening file: %s\n", strerror(errno));

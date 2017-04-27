@@ -45,7 +45,6 @@
 #include <syscall.h>
 #include <file.h>
 #include <test.h>
-#include <types.h>
 
 /*
  * Load program "progname" and start running it in usermode.
