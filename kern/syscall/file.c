@@ -53,7 +53,15 @@ void open_std(void) {
 }
 
 int sys_open(userptr_t filename, int flags, int *ret) {
-	char *path = (char *)filename;
+	if (filename == NULL) {
+		return EFAULT;
+	}
+	char *kfilename = kmalloc((PATH_MAX + 1)*sizeof(char));
+	size_t got;
+	int result = copyinstr(filename, kfilename, PATH_MAX + 1, &got);
+	if (result) {
+		return result;
+	}
 
 	int i;
 	for (i = 0; i < OPEN_MAX; i++) {
@@ -66,7 +74,7 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 	}
 
 	int err;
-	if((err = open(path, flags, i))){
+	if((err = open(kfilename, flags, i))){
 		return err;
 	}
 
@@ -96,7 +104,6 @@ int sys_close(int filehandler) {
 }
 
 // TODO: Check if open_flags is valid, end of file?
-// Use the lock
 // error codes
 int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
@@ -104,12 +111,11 @@ int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 	}
 	struct open_file *file = curproc->descriptor_table[filehandler];
 
-	void *kernal_buf = kmalloc(size);
 	struct iovec iov;
 	struct uio myuio;
 	lock_acquire(file->lock_ptr);
 	off_t old_offset = file->offset;
-	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_READ);
+	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_READ);
 	int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
@@ -119,10 +125,6 @@ int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 	*ret = file->offset - old_offset;
 	lock_release(file->lock_ptr);
 
-	result = copyout(kernal_buf, buf, size);
-	if (result) {
-		return result;
-	}
 	return 0;
 }
 
@@ -132,18 +134,12 @@ int sys_write(int filehandler, userptr_t buf, size_t size, int *ret) {
 	}
 	struct open_file *file = curproc->descriptor_table[filehandler];
 
-	void *kernal_buf = kmalloc(size);
-	int result = copyin(buf, kernal_buf, size);
-	if (result) {
-		return result;
-	}
-
 	struct iovec iov;
 	struct uio myuio;
 	lock_acquire(file->lock_ptr);
 	off_t old_offset = file->offset;
-	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_WRITE);
-	result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
+	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_WRITE);
+	int result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
