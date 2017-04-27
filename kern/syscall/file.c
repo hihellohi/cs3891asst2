@@ -20,13 +20,38 @@
  * Add your file-related functions here ...
  */
 
-int sys_open(userptr_t filename, int flags, int *ret) {
-	char *path = (char *)filename;
-	struct vnode *v;
-	int result = vfs_open(path, flags, 0, &v);
+static int open(char *filename, int flags, int descriptor){
+	struct open_file *file = kmalloc(sizeof(struct open_file*));
+	if(!file){
+		return ENFILE;
+	}
+ 
+	int result = vfs_open(filename, flags, 0, &file->v_ptr);
 	if (result) {
+		kfree(file);
 		return result;
 	}
+
+	if(!(file->lock_ptr = lock_create("open file lock"))) {
+		vfs_close(file->v_ptr);
+		kfree(file);
+		return ENFILE;
+	}
+
+	file->offset = 0;
+	curproc->descriptor_table[descriptor] = file;
+
+	return 0;
+}
+
+void sys_open_std(void) {
+	char con1[] = "con:", con2[] = "con:";
+	open(con1, O_WRONLY, 1); 
+	open(con2, O_WRONLY, 2); 
+}
+
+int sys_open(userptr_t filename, int flags, int *ret) {
+	char *path = (char *)filename;
 
     int i;
 	for (i = 0; i < OPEN_MAX; i++) {
@@ -38,13 +63,11 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 		return EMFILE;
 	}
 
-	struct open_file *file = kmalloc(sizeof(struct open_file*));
- 
-	file->v_ptr = v;
-	file->lock_ptr = lock_create("open file lock");
-	file->offset = 0;
+	int err;
+	if((err = open(path, flags, i))){
+		return err;
+	}
 
-	curproc->descriptor_table[i] = file;
     *ret = i;
 	return 0;
 }
@@ -56,6 +79,7 @@ int sys_close(int file) {
 
 	vfs_close(curproc->descriptor_table[file]->v_ptr);
 	lock_destroy(curproc->descriptor_table[file]->lock_ptr);
+	kfree(curproc->descriptor_table[file]);
 
 	curproc->descriptor_table[file] = NULL;
 
@@ -78,7 +102,12 @@ int sys_dup2(int oldfd, int newfd) {
 	return 0;
 }
 
-void file_bootstrap(void) {
-	return;
+int sys_lseek(int fd, off_t pos, int whence, off_t *ret){
+	(void)fd;
+	(void)pos;
+	(void)whence;
+	(void)ret;
+	
+	return 0;
 }
 

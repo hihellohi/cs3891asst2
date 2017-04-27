@@ -43,6 +43,7 @@
 #include <vm.h>
 #include <vfs.h>
 #include <syscall.h>
+#include <file.h>
 #include <test.h>
 #include <types.h>
 
@@ -59,7 +60,6 @@ runprogram(char *progname)
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
 	int result;
-	char con1[] = "con:", con2[] = "con:";
 
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);
@@ -81,10 +81,7 @@ runprogram(char *progname)
 	proc_setas(as);
 	as_activate();
 
-	sys_open((userptr_t)con1, O_WRONLY, (int*)&result); 
-	KASSERT(result == 1);
-	sys_open((userptr_t)con2, O_WRONLY, (int*)&result); 
-	KASSERT(result == 2);
+	sys_open_std();
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);

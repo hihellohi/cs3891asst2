@@ -61,5 +61,6 @@ int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 int sys_open(userptr_t filename, int flags, int *ret);
 int sys_close(int file);
 int sys_dup2(int oldfd, int newfd);
+int sys_lseek(int fd, off_t pos, int whence, off_t *ret);
 
 #endif /* _SYSCALL_H_ */
