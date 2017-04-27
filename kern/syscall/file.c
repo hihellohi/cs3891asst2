@@ -81,13 +81,16 @@ int sys_close(int filehandler) {
 
 	struct open_file *file = curproc->descriptor_table[filehandler];
 
-	if(!--file->references){
+	lock_acquire(file->lock_ptr);
+	curproc->descriptor_table[filehandler] = NULL;
+
+	if(!--file->references){ 
+		lock_release(file->lock_ptr); //This is the last reference to this open file
 		vfs_close(file->v_ptr);
 		lock_destroy(file->lock_ptr);
 		kfree(file);
 	}
-
-	curproc->descriptor_table[filehandler] = NULL;
+	lock_release(file->lock_ptr);
 
 	return 0;
 }
@@ -169,8 +172,10 @@ int sys_dup2(int oldfd, int newfd) {
 		}
 	}
 
-	curproc->descriptor_table[newfd] = curproc->descriptor_table[oldfd];
-	curproc->descriptor_table[newfd]->references++;
+	struct open_file *file = curproc->descriptor_table[newfd] = curproc->descriptor_table[oldfd];
+	lock_acquire(file->lock_ptr);
+	file->references++;
+	lock_release(file->lock_ptr);
 
 	return 0;
 }
@@ -202,21 +207,28 @@ int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret) {
 			if(pos < 0){
 				return EINVAL;
 			}
+			lock_acquire(file->lock_ptr);
 			*ret = file->offset = pos;
+			lock_release(file->lock_ptr);
 			break;
 
 		case SEEK_CUR:
+			lock_acquire(file->lock_ptr);
 			if(file->offset + pos < 0){
+				lock_release(file->lock_ptr);
 				return EINVAL;
 			}
 			*ret = file->offset += pos;
+			lock_release(file->lock_ptr);
 			break;
 		
 		case SEEK_END:
 			if(stats.st_size + pos < 0){
 				return EINVAL;
 			}
+			lock_acquire(file->lock_ptr);
 			*ret = file->offset = stats.st_size + pos; 
+			lock_release(file->lock_ptr);
 			break;
 
 		default:

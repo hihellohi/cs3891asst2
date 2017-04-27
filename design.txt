@@ -1,1 +1,7 @@
 Place your design document here.
+
+The basic requirement of the assignment was to implement per process file descriptor tables with a global open file table.  The implementation of the per process file descriptor tables was done by adding a reference to a table in the process structure.  Thus we are able to access each process' fd table through curproc.  The table itself is simply an array of pointers to entries in the global open file table and new slots are assigned through a linear search.
+
+The entries of the global open file table contained:
+ - a reference to the vnode that was acquired from the vfs
+ - a lock for mutual exclusion when writing
