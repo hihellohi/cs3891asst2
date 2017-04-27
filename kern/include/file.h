@@ -22,6 +22,7 @@ struct open_file {
 	struct vnode *v_ptr;
 	struct lock *lock_ptr;
     off_t offset;
+    int open_flags;
 };
 
 struct open_file *open_files[OPEN_TOTAL_MAX];

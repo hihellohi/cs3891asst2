@@ -39,6 +39,7 @@ static int open(char *filename, int flags, int descriptor){
 	}
 
 	file->offset = 0;
+	file->open_flags = flags;
 	curproc->descriptor_table[descriptor] = file;
 
 	return 0;
@@ -72,18 +73,64 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 	return 0;
 }
 
-int sys_close(int file) {
-	if(file < 0 || file >= OPEN_MAX || !curproc->descriptor_table[file]) {
+int sys_close(int filehandler) {
+	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
 
-	vfs_close(curproc->descriptor_table[file]->v_ptr);
-	lock_destroy(curproc->descriptor_table[file]->lock_ptr);
-	kfree(curproc->descriptor_table[file]);
+	vfs_close(curproc->descriptor_table[filehandler]->v_ptr);
+	lock_destroy(curproc->descriptor_table[filehandler]->lock_ptr);
+	kfree(curproc->descriptor_table[filehandler]);
 
-	curproc->descriptor_table[file] = NULL;
+	curproc->descriptor_table[filehandler] = NULL;
 
 	return 0;
+}
+
+// TODO: Check if open_flags is valid, end of file?
+int sys_read(int filehandler, userptr_t buf, size_t size) {
+	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
+		return EBADF;
+	}
+    struct open_file *file = curproc->descriptor_table[filehandler];
+
+	void *kernal_buf = kmalloc(size);
+    struct iovec iov;
+    struct uio myuio;
+    uio_kinit(&iov, &myuio, kernal_buf, sizeof(kernal_buf), file->offset, UIO_READ);
+    int result = VOP_READ(file->v_ptr, &myuio);
+	if (result) {
+		return result;
+	}
+    result = copyout(kernal_buf, buf, size);
+	if (result) {
+		return result;
+	}
+    file->offset = myuio.uio_offset;
+    return 0;
+}
+
+int sys_write(int filehandler, userptr_t buf, size_t size) {
+	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
+		return EBADF;
+	}
+    struct open_file *file = curproc->descriptor_table[filehandler];
+
+	void *kernal_buf = kmalloc(size);
+    int result = copyin(buf, kernal_buf, size);
+	if (result) {
+		return result;
+	}
+
+    struct iovec iov;
+    struct uio myuio;
+    uio_kinit(&iov, &myuio, kernal_buf, sizeof(kernal_buf), file->offset, UIO_WRITE);
+    result = VOP_WRITE(file->v_ptr, &myuio);
+	if (result) {
+		return result;
+	}
+    file->offset = myuio.uio_offset;
+    return 0;
 }
 
 int sys_dup2(int oldfd, int newfd) {
