@@ -5,6 +5,7 @@ kern/compile/*
 user/testbin/randcall/calls.c
 TAGS
 tags
+cscope.file
 .svn/*
 *.swp
 
