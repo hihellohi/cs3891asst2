@@ -54,7 +54,7 @@ void sys_open_std(void) {
 int sys_open(userptr_t filename, int flags, int *ret) {
 	char *path = (char *)filename;
 
-    int i;
+	int i;
 	for (i = 0; i < OPEN_MAX; i++) {
 		if (curproc->descriptor_table[i] == NULL) {
 			break;
@@ -69,7 +69,7 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 		return err;
 	}
 
-    *ret = i;
+	*ret = i;
 	return 0;
 }
 
@@ -94,52 +94,52 @@ int sys_read(int filehandler, userptr_t buf, size_t size) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
-    struct open_file *file = curproc->descriptor_table[filehandler];
+	struct open_file *file = curproc->descriptor_table[filehandler];
 
 	void *kernal_buf = kmalloc(size);
-    struct iovec iov;
-    struct uio myuio;
-    lock_acquire(file->lock_ptr);
-    uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_READ);
-    int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
+	struct iovec iov;
+	struct uio myuio;
+	lock_acquire(file->lock_ptr);
+	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_READ);
+	int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
 	if (result) {
-        lock_release(file->lock_ptr);
+		lock_release(file->lock_ptr);
 		return result;
 	}
-    file->offset = myuio.uio_offset;
-    lock_release(file->lock_ptr);
+	file->offset = myuio.uio_offset;
+	lock_release(file->lock_ptr);
 
-    result = copyout(kernal_buf, buf, size);
+	result = copyout(kernal_buf, buf, size);
 	if (result) {
 		return result;
 	}
-    return 0;
+	return 0;
 }
 
 int sys_write(int filehandler, userptr_t buf, size_t size) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
-    struct open_file *file = curproc->descriptor_table[filehandler];
+	struct open_file *file = curproc->descriptor_table[filehandler];
 
 	void *kernal_buf = kmalloc(size);
-    int result = copyin(buf, kernal_buf, size);
+	int result = copyin(buf, kernal_buf, size);
 	if (result) {
 		return result;
 	}
 
-    struct iovec iov;
-    struct uio myuio;
-    lock_acquire(file->lock_ptr);
-    uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_WRITE);
-    result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
+	struct iovec iov;
+	struct uio myuio;
+	lock_acquire(file->lock_ptr);
+	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_WRITE);
+	result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
 	}
-    file->offset = myuio.uio_offset;
-    lock_release(file->lock_ptr);
-    return 0;
+	file->offset = myuio.uio_offset;
+	lock_release(file->lock_ptr);
+	return 0;
 }
 
 int sys_dup2(int oldfd, int newfd) {
