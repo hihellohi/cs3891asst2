@@ -79,7 +79,8 @@ void
 syscall(struct trapframe *tf)
 {
 	int callno;
-	int64_t retval;
+	int retval;
+	int64_t retval64;
 	int err;
 
 	KASSERT(curthread != NULL);
@@ -97,7 +98,7 @@ syscall(struct trapframe *tf)
 	 * like write.
 	 */
 
-	retval = 0;
+	retval64 = retval = 0;
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -111,7 +112,7 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 		case SYS_open:
-		err = sys_open((userptr_t)tf->tf_a0, tf->tf_a1, (int32_t*)&(retval));
+		err = sys_open((userptr_t)tf->tf_a0, tf->tf_a1, &retval);
 		break;
 
 		case SYS_close:
@@ -119,11 +120,11 @@ syscall(struct trapframe *tf)
 		break;
 
 		case SYS_write:
-		err = sys_write(tf->tf_a0, (userptr_t)tf->tf_a1, (size_t)tf->tf_a2);
+		err = sys_write(tf->tf_a0, (userptr_t)tf->tf_a1, (size_t)tf->tf_a2, &retval);
 		break;
 
         case SYS_read:
-		err = sys_read(tf->tf_a0, (userptr_t)tf->tf_a1, (size_t)tf->tf_a2);
+		err = sys_read(tf->tf_a0, (userptr_t)tf->tf_a1, (size_t)tf->tf_a2, &retval);
 		break;
 
 		case SYS_dup2:
@@ -132,7 +133,7 @@ syscall(struct trapframe *tf)
 		break;
 
 		case SYS_lseek:
-		err = sys_lseek(tf->tf_a0, tf->tf_a3 | ((int64_t)tf->tf_a2 << 32), (userptr_t)(tf->tf_sp + 16), &retval);
+		err = sys_lseek(tf->tf_a0, tf->tf_a3 | ((int64_t)tf->tf_a2 << 32), (userptr_t)(tf->tf_sp + 16), &retval64);
 		break;
 
 	    default:
@@ -153,8 +154,13 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
-		tf->tf_v0 = (int32_t)retval;
-		tf->tf_v1 = (int32_t)(retval >> 32);
+		if (callno == SYS_lseek) {
+			tf->tf_v0 = (int32_t)retval64;
+			tf->tf_v1 = (int32_t)(retval64 >> 32);
+		}
+		else {
+			tf->tf_v0 = retval;
+		}
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 

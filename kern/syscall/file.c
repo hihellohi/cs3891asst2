@@ -90,8 +90,8 @@ int sys_close(int filehandler) {
 
 // TODO: Check if open_flags is valid, end of file?
 // Use the lock
-// Add return value
-int sys_read(int filehandler, userptr_t buf, size_t size) {
+// error codes
+int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
@@ -101,6 +101,7 @@ int sys_read(int filehandler, userptr_t buf, size_t size) {
 	struct iovec iov;
 	struct uio myuio;
 	lock_acquire(file->lock_ptr);
+	off_t old_offset = file->offset;
 	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_READ);
 	int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
 	if (result) {
@@ -108,6 +109,7 @@ int sys_read(int filehandler, userptr_t buf, size_t size) {
 		return result;
 	}
 	file->offset = myuio.uio_offset;
+	*ret = file->offset - old_offset;
 	lock_release(file->lock_ptr);
 
 	result = copyout(kernal_buf, buf, size);
@@ -117,7 +119,7 @@ int sys_read(int filehandler, userptr_t buf, size_t size) {
 	return 0;
 }
 
-int sys_write(int filehandler, userptr_t buf, size_t size) {
+int sys_write(int filehandler, userptr_t buf, size_t size, int *ret) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
@@ -132,6 +134,7 @@ int sys_write(int filehandler, userptr_t buf, size_t size) {
 	struct iovec iov;
 	struct uio myuio;
 	lock_acquire(file->lock_ptr);
+	off_t old_offset = file->offset;
 	uio_kinit(&iov, &myuio, kernal_buf, size, file->offset, UIO_WRITE);
 	result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
 	if (result) {
@@ -139,6 +142,7 @@ int sys_write(int filehandler, userptr_t buf, size_t size) {
 		return result;
 	}
 	file->offset = myuio.uio_offset;
+	*ret = file->offset - old_offset;
 	lock_release(file->lock_ptr);
 	return 0;
 }
