@@ -81,7 +81,7 @@ runprogram(char *progname)
 	proc_setas(as);
 	as_activate();
 
-	sys_open_std();
+	open_std();
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);

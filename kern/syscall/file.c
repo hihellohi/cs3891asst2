@@ -45,7 +45,7 @@ static int open(char *filename, int flags, int descriptor){
 	return 0;
 }
 
-void sys_open_std(void) {
+void open_std(void) {
 	char con1[] = "con:", con2[] = "con:";
 	open(con1, O_WRONLY, 1); 
 	open(con2, O_WRONLY, 2); 
@@ -73,6 +73,7 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 	return 0;
 }
 
+//TODO should closing duplicate delete all open instances
 int sys_close(int filehandler) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
@@ -158,11 +159,53 @@ int sys_dup2(int oldfd, int newfd) {
 	return 0;
 }
 
-int sys_lseek(int fd, off_t pos, int whence, off_t *ret){
-	(void)fd;
-	(void)pos;
-	(void)whence;
-	(void)ret;
+int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret) {
+	struct open_file *file;
+	int result;
+
+	if(fd < 0 || fd > OPEN_MAX || !(file = curproc->descriptor_table[fd])){
+		return EBADF;
+	}
+
+	if(!VOP_ISSEEKABLE(file->v_ptr)){
+		return ESPIPE;
+	}
+
+	struct stat stats;
+	if((result = file->v_ptr->vn_ops->vop_stat(file->v_ptr, &stats))){
+		return result;
+	}
+
+	int whence;
+	if((result = copyin(whence_ptr, &whence, 4))) {
+		return result;
+	}
+
+	switch(whence){
+		case SEEK_SET:
+			if(pos < 0){
+				return EINVAL;
+			}
+			*ret = file->offset = pos;
+			break;
+
+		case SEEK_CUR:
+			if(file->offset + pos < 0){
+				return EINVAL;
+			}
+			*ret = file->offset += pos;
+			break;
+		
+		case SEEK_END:
+			if(stats.st_size + pos < 0){
+				return EINVAL;
+			}
+			*ret = file->offset = stats.st_size + pos; 
+			break;
+
+		default:
+			return EINVAL;
+	}
 	
 	return 0;
 }

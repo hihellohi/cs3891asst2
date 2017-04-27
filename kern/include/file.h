@@ -27,6 +27,6 @@ struct open_file {
 
 struct open_file *open_files[OPEN_TOTAL_MAX];
 
-void sys_open_std(void);
+void open_std(void);
 
 #endif /* _FILE_H_ */
