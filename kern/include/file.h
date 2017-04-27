@@ -10,7 +10,6 @@
  */
 #include <limits.h>
 
-struct open_file;
 struct vnode;
 struct lock;
 
@@ -23,9 +22,8 @@ struct open_file {
 	struct lock *lock_ptr;
     off_t offset;
     int open_flags;
+	int references;
 };
-
-struct open_file *open_files[OPEN_TOTAL_MAX];
 
 void open_std(void);
 

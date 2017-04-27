@@ -40,6 +40,7 @@ static int open(char *filename, int flags, int descriptor){
 
 	file->offset = 0;
 	file->open_flags = flags;
+	file->references = 1;
 	curproc->descriptor_table[descriptor] = file;
 
 	return 0;
@@ -73,15 +74,18 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 	return 0;
 }
 
-//TODO should closing duplicate delete all open instances
 int sys_close(int filehandler) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
 
-	vfs_close(curproc->descriptor_table[filehandler]->v_ptr);
-	lock_destroy(curproc->descriptor_table[filehandler]->lock_ptr);
-	kfree(curproc->descriptor_table[filehandler]);
+	struct open_file *file = curproc->descriptor_table[filehandler];
+
+	if(!--file->references){
+		vfs_close(file->v_ptr);
+		lock_destroy(file->lock_ptr);
+		kfree(file);
+	}
 
 	curproc->descriptor_table[filehandler] = NULL;
 
@@ -154,11 +158,19 @@ int sys_dup2(int oldfd, int newfd) {
 		return EBADF;
 	}
 
+	if(oldfd == newfd){
+		return 0;
+	}
+
 	if(curproc->descriptor_table[newfd]){
-		sys_close(newfd);
+		int result = sys_close(newfd);
+		if(result){
+			return result;
+		}
 	}
 
 	curproc->descriptor_table[newfd] = curproc->descriptor_table[oldfd];
+	curproc->descriptor_table[newfd]->references++;
 
 	return 0;
 }
