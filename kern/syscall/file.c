@@ -126,7 +126,7 @@ int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 
 	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_READ);
 
-	int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
+	int result = VOP_READ(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
@@ -157,7 +157,7 @@ int sys_write(int filehandler, userptr_t buf, size_t size, int *ret) {
 
 	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_WRITE);
 
-	int result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
+	int result = VOP_WRITE(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
