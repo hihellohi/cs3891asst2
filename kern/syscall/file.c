@@ -98,7 +98,9 @@ int sys_close(int filehandler) {
 		lock_destroy(file->lock_ptr);
 		kfree(file);
 	}
-	lock_release(file->lock_ptr);
+	else{
+		lock_release(file->lock_ptr);
+	}
 
 	return 0;
 }
