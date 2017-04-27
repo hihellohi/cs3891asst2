@@ -20,6 +20,8 @@
  * Add your file-related functions here ...
  */
 
+// TODO: Take in 3rd argument register and give to vfs_open (mode_t)
+// Although this is not even implemented in OS161 so whatever...
 static int open(char *filename, int flags, int descriptor){
 	struct open_file *file = kmalloc(sizeof(struct open_file*));
 	if(!file){
@@ -100,24 +102,31 @@ int sys_close(int filehandler) {
 	return 0;
 }
 
-// TODO: Check if open_flags is valid, end of file?
-// error codes
 int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
 	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
 		return EBADF;
 	}
 	struct open_file *file = curproc->descriptor_table[filehandler];
 
+	int how = file->open_flags & O_ACCMODE;
+	if (how == O_WRONLY) {
+		return EBADF;
+	}
+
 	struct iovec iov;
 	struct uio myuio;
+
 	lock_acquire(file->lock_ptr);
 	off_t old_offset = file->offset;
+
 	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_READ);
+
 	int result = file->v_ptr->vn_ops->vop_read(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
 	}
+
 	file->offset = myuio.uio_offset;
 	*ret = file->offset - old_offset;
 	lock_release(file->lock_ptr);
@@ -130,20 +139,29 @@ int sys_write(int filehandler, userptr_t buf, size_t size, int *ret) {
 		return EBADF;
 	}
 	struct open_file *file = curproc->descriptor_table[filehandler];
+	int how = file->open_flags & O_ACCMODE;
+	if (how == O_RDONLY) {
+		return EBADF;
+	}
 
 	struct iovec iov;
 	struct uio myuio;
+
 	lock_acquire(file->lock_ptr);
 	off_t old_offset = file->offset;
+
 	uio_uinit(&iov, &myuio, buf, size, file->offset, UIO_WRITE);
+
 	int result = file->v_ptr->vn_ops->vop_write(file->v_ptr, &myuio);
 	if (result) {
 		lock_release(file->lock_ptr);
 		return result;
 	}
+
 	file->offset = myuio.uio_offset;
 	*ret = file->offset - old_offset;
 	lock_release(file->lock_ptr);
+
 	return 0;
 }
 
