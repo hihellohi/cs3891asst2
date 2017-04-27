@@ -75,8 +75,13 @@ proc_create(const char *name)
 	}
 
 	proc->descriptor_table = kmalloc(sizeof(struct descriptor*) * OPEN_MAX);
-	if(proc->descriptor_table == NULL) {
-		panic("out of memory");
+	if (proc->descriptor_table == NULL) {
+		kfree(proc);
+		return NULL;
+	}
+
+	for(int i = 0; i < OPEN_MAX; i++){
+		proc->descriptor_table[i] = NULL;
 	}
 
 	proc->p_numthreads = 0;

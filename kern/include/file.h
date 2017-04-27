@@ -12,6 +12,7 @@
 
 struct open_file;
 struct vnode;
+struct lock;
 
 /*
  * Put your function declarations and data types here ...
@@ -19,7 +20,8 @@ struct vnode;
 
 struct open_file {
 	struct vnode *v_ptr;
-	struct uio *f_ptr;
+	struct lock *lock_ptr;
+    off_t offset;
 };
 
 struct open_file *open_files[OPEN_TOTAL_MAX];
