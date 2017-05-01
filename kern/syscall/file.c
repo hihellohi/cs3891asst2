@@ -93,8 +93,9 @@ int sys_close(int filehandler) {
 
 	lock_acquire(file->lock_ptr);
 	curproc->descriptor_table[filehandler] = NULL;
+	file->references -= 1;
 
-	if(!--file->references){ 
+	if(!(file->references)) {
 		lock_release(file->lock_ptr); //This is the last reference to this open file
 		vfs_close(file->v_ptr);
 		lock_destroy(file->lock_ptr);
@@ -214,7 +215,7 @@ int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret) {
 	}
 
 	int whence;
-	if((result = copyin(whence_ptr, &whence, 4))) {
+	if((result = copyin(whence_ptr, &whence, sizeof(int)))) {
 		return result;
 	}
 
