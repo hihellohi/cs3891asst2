@@ -66,6 +66,7 @@ struct proc {
 	unsigned p_numthreads;		/* Number of threads in this process */
 
 	struct open_file **descriptor_table;
+	int pid;
 
 	/* VM */
 	struct addrspace *p_addrspace;	/* virtual address space */
@@ -100,5 +101,7 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+void pid_bootstrap(void);
+int sys_getpid(int *ret);
 
 #endif /* _PROC_H_ */
