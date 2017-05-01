@@ -136,6 +136,10 @@ syscall(struct trapframe *tf)
 		err = sys_lseek(tf->tf_a0, tf->tf_a3 | ((int64_t)tf->tf_a2 << 32), (userptr_t)(tf->tf_sp + 16), &retval64);
 		break;
 
+		case SYS_fork:
+		err = sys_fork(tf, &retval);
+		break;
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -186,7 +190,11 @@ syscall(struct trapframe *tf)
  * Thus, you can trash it and do things another way if you prefer.
  */
 void
-enter_forked_process(struct trapframe *tf)
+enter_forked_process(struct trapframe *tf, long unsigned int dummy)
 {
-	(void)tf;
+	(void) dummy;
+	struct trapframe stacktf = *tf;
+	kfree(tf);
+	stacktf.tf_a3 = 0;
+	mips_usermode(&stacktf);
 }

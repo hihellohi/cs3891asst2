@@ -48,7 +48,12 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <synch.h>
 #include <limits.h>
+#include <file.h>
+#include <syscall.h>
+#include <mips/trapframe.h>
+#include <kern/errno.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -181,6 +186,58 @@ proc_destroy(struct proc *proc)
 
 	kfree(proc->p_name);
 	kfree(proc);
+}
+
+int sys_fork(struct trapframe *tf, int *ret){
+	//create new process
+	struct proc *newproc = proc_create(curproc->p_name);
+	if(!newproc){
+		return ENOMEM;
+	}
+
+	//create new descriptor table
+	for(int i = 0; i < OPEN_MAX; i++){
+		struct open_file *file = newproc->descriptor_table[i] = curproc->descriptor_table[i];
+		if(file){
+			lock_acquire(file->lock_ptr);
+			file->references++;
+			lock_release(file->lock_ptr);
+		}
+	}
+
+	//copy over address space
+	int result = as_copy(curproc->p_addrspace, &newproc->p_addrspace);
+	if(result){
+		proc_destroy(newproc);
+		return result;
+	}
+
+	//copy over working directory
+	VOP_INCREF(curproc->p_cwd);
+	newproc->p_cwd = curproc->p_cwd;
+
+	//copy trapframe
+	struct trapframe *newtf = kmalloc(sizeof(struct trapframe));
+	if(!newtf){
+		VOP_DECREF(curproc->p_cwd);
+		proc_destroy(newproc);
+		return ENOMEM;
+	}
+	memcpy(newtf, tf, sizeof(struct trapframe));
+
+	//child returns 0
+	newtf->tf_v0 = 0;
+	newtf->tf_epc = tf->tf_ra;
+
+	//fork
+	if((result = thread_fork(curthread->t_name, newproc, (void (*)(void *, long unsigned int))enter_forked_process, newtf, 0))) {
+		kfree(newtf);
+		proc_destroy(newproc);
+		return result;
+	}
+
+	*ret = 1; //NEWPID;
+	return 0;
 }
 
 /*
