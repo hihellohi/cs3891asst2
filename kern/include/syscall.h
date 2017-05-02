@@ -65,5 +65,6 @@ int sys_close(int filehandler);
 int sys_dup2(int oldfd, int newfd);
 int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret);
 int sys_fork(struct trapframe *tf, int *ret);
+int sys_getpid(int *ret);
 
 #endif /* _SYSCALL_H_ */

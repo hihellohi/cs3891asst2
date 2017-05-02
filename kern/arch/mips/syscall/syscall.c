@@ -35,7 +35,6 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-#include <proc.h> //delet this after you move the prototype for sys_getpid to syscall.h
 
 
 /*
