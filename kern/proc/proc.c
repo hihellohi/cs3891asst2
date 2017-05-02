@@ -61,12 +61,24 @@
 struct proc *kproc;
 
 /*
+ * Data structures for allocation of pids
+ */
+struct lock *pid_stack_lock;
+int pid_stack[PID_MAX];
+int pid_stack_top;
+
+/*
  * Create a proc structure.
  */
 static
 struct proc *
 proc_create(const char *name)
 {
+	// stack is empty - no pids free
+	if (pid_stack_top == -1) {
+		return NULL;
+	}
+
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
@@ -81,12 +93,27 @@ proc_create(const char *name)
 
 	proc->descriptor_table = kmalloc(sizeof(struct descriptor*) * OPEN_MAX);
 	if (proc->descriptor_table == NULL) {
+		kfree(proc->p_name);
 		kfree(proc);
 		return NULL;
 	}
 
 	for(int i = 0; i < OPEN_MAX; i++){
 		proc->descriptor_table[i] = NULL;
+	}
+
+	// if stack is full we are creating
+	// the kernel proc and cannot/do not
+	// need to acquire the look
+	if (pid_stack_top != PID_MAX - 1) {
+		lock_acquire(pid_stack_lock);
+	}
+
+	proc->pid = pid_stack[pid_stack_top];
+	pid_stack_top--;
+
+	if (pid_stack_top != PID_MAX - 1) {
+		lock_release(pid_stack_lock);
 	}
 
 	proc->p_numthreads = 0;
@@ -120,6 +147,23 @@ proc_destroy(struct proc *proc)
 
 	KASSERT(proc != NULL);
 	KASSERT(proc != kproc);
+
+	for(int i = 0; i < OPEN_MAX; i++) {
+		if (proc->descriptor_table[i] != NULL) {
+			sys_close(i);
+		}
+	}
+	kfree(proc->descriptor_table);
+
+	lock_acquire(pid_stack_lock);
+
+	// check stack is not full
+	KASSERT(pid_stack_top != PID_MAX - 1);
+
+	pid_stack_top += 1;
+	pid_stack[pid_stack_top] = proc->pid;
+
+	lock_release(pid_stack_lock);
 
 	/*
 	 * We don't take p_lock in here because we must have the only
@@ -385,4 +429,27 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+void
+pid_bootstrap(void)
+{
+	pid_stack_lock = lock_create("PID stack lock");
+	if (pid_stack_lock == NULL) {
+		panic("lock_create for pid_stack_lock failed\n");
+	}
+	kprintf("lock created");
+	// set the entire stack full of free pids
+	for (int i = 0; i < PID_MAX; i++) {
+		pid_stack[i] = PID_MAX - i;
+	}
+	pid_stack_top = PID_MAX - 1;
+	kprintf("Bootstrap finished!");
+}
+
+int
+sys_getpid(int *ret)
+{
+	*ret = curproc->pid;
+	return 0;
 }

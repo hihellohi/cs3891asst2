@@ -121,6 +121,7 @@ main(int argc, char * argv[])
         printf("* file lseek  okay\n");
         printf("* closing file\n");
         close(fd);
+        printf("process id: %d\n", getpid());
 
 		if(fork()){
 			printf("hello\n");
