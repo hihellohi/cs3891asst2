@@ -109,7 +109,7 @@ proc_create(const char *name)
 		lock_acquire(pid_stack_lock);
 	}
 
-	proc->pid = pid_stack[pid_stack_top]; 
+	proc->pid = pid_stack[pid_stack_top];
 	pid_stack_top--;
 
 	if (pid_stack_top != PID_MAX - 1) { // shouldn't you be checking against PID_MAX - 2 since you decrement the stack counter?
