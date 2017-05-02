@@ -34,7 +34,8 @@ static int open(char *filename, int flags, int descriptor){
 		return result;
 	}
 
-	if(!(file->lock_ptr = lock_create("open file lock"))) {
+	file->lock_ptr = lock_create("open file lock");
+	if(!file->lock_ptr) {
 		vfs_close(file->v_ptr);
 		kfree(file);
 		return ENFILE;
@@ -80,8 +81,8 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 		return EMFILE;
 	}
 
-	int err;
-	if((err = open(kfilename, flags, i))){
+	int err = open(kfilename, flags, i);
+	if(err){
 		kfree(kfilename);
 		return err;
 	}
@@ -101,7 +102,7 @@ int sys_close(int filehandler) {
 	curproc->descriptor_table[filehandler] = NULL;
 	file->references -= 1;
 
-	if(!(file->references)) {
+	if(!file->references) {
 		lock_release(file->lock_ptr); //This is the last reference to this open file
 		vfs_close(file->v_ptr);
 		lock_destroy(file->lock_ptr);
@@ -205,7 +206,6 @@ int sys_dup2(int oldfd, int newfd) {
 
 int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret) {
 	struct open_file *file;
-	int result;
 
 	if(fd < 0 || fd > OPEN_MAX || !(file = curproc->descriptor_table[fd])){
 		return EBADF;
@@ -216,12 +216,14 @@ int sys_lseek(int fd, off_t pos, userptr_t whence_ptr, off_t *ret) {
 	}
 
 	struct stat stats;
-	if((result = file->v_ptr->vn_ops->vop_stat(file->v_ptr, &stats))){
+	int result = VOP_STAT(file->v_ptr, &stats);
+	if(result){
 		return result;
 	}
 
 	int whence;
-	if((result = copyin(whence_ptr, &whence, sizeof(int)))) {
+	result = copyin(whence_ptr, &whence, sizeof(int));
+	if(result) {
 		return result;
 	}
 
