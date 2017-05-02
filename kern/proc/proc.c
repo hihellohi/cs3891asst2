@@ -74,11 +74,6 @@ static
 struct proc *
 proc_create(const char *name)
 {
-	// stack is empty - no pids free
-	if (pid_stack_top == -1) {
-		return NULL;
-	}
-
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
@@ -104,15 +99,24 @@ proc_create(const char *name)
 
 	// if stack is full we are creating
 	// the kernel proc and cannot/do not
-	// need to acquire the look
+	// need to acquire the lock
 	if (pid_stack_top != PID_MAX - 1) {
 		lock_acquire(pid_stack_lock);
+	}
+
+	// stack is empty - no pids free
+	if (pid_stack_top == -1) {
+		lock_release(pid_stack_lock);
+		kfree(proc->descriptor_table);
+		kfree(proc->p_name);
+		kfree(proc);
+		return NULL;
 	}
 
 	proc->pid = pid_stack[pid_stack_top];
 	pid_stack_top--;
 
-	if (pid_stack_top != PID_MAX - 1) {
+	if (pid_stack_top != PID_MAX - 2) {
 		lock_release(pid_stack_lock);
 	}
 

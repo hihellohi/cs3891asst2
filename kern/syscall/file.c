@@ -58,10 +58,14 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 	if (filename == NULL) {
 		return EFAULT;
 	}
-	char *kfilename = kmalloc((PATH_MAX + 1)*sizeof(char)); //check that this is not null
+	char *kfilename = kmalloc((PATH_MAX + 1)*sizeof(char));
+	if (kfilename == NULL) {
+		return ENFILE;
+	}
 	size_t got;
 	int result = copyinstr(filename, kfilename, PATH_MAX + 1, &got);
-	if (result) { //free kfilename
+	if (result) {
+		kfree(kfilename);
 		return result;
 	}
 
@@ -71,12 +75,14 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 			break;
 		}
 	}
-	if (i == OPEN_MAX) { //free kfilename
+	if (i == OPEN_MAX) {
+		kfree(kfilename);
 		return EMFILE;
 	}
 
 	int err;
-	if((err = open(kfilename, flags, i))){ //free kfilename ... though admittedly this one might be my fault
+	if((err = open(kfilename, flags, i))){
+		kfree(kfilename);
 		return err;
 	}
 
