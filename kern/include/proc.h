@@ -102,6 +102,6 @@ struct addrspace *proc_getas(void);
 struct addrspace *proc_setas(struct addrspace *);
 
 void pid_bootstrap(void);
-int sys_getpid(int *ret);
+int sys_getpid(int *ret); //this should be in syscall.h
 
 #endif /* _PROC_H_ */
