@@ -281,11 +281,12 @@ int sys_fork(struct trapframe *tf, int *ret){
 	newtf->tf_epc = tf->tf_ra;
 
 	//fork
-	if((result = thread_fork(
+	result = thread_fork(
 					curthread->t_name, 
 					newproc, 
 					(void (*)(void *, long unsigned int))enter_forked_process, 
-					newtf, 0))) {
+					newtf, 0);
+	if(result) {
 		kfree(newtf);
 		proc_destroy(newproc);
 		return result;
