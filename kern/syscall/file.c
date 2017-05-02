@@ -50,8 +50,8 @@ static int open(char *filename, int flags, int descriptor){
 
 void open_std(void) {
 	char con1[] = "con:", con2[] = "con:";
-	open(con1, O_WRONLY, 1); 
-	open(con2, O_WRONLY, 2); 
+	KASSERT(open(con1, O_WRONLY, 1) == 0); 
+	KASSERT(open(con2, O_WRONLY, 2) == 0);
 }
 
 int sys_open(userptr_t filename, int flags, int *ret) {
@@ -59,9 +59,13 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 		return EFAULT;
 	}
 	char *kfilename = kmalloc((PATH_MAX + 1)*sizeof(char));
+	if (kfilename == NULL) {
+		return ENFILE;
+	}
 	size_t got;
 	int result = copyinstr(filename, kfilename, PATH_MAX + 1, &got);
 	if (result) {
+		kfree(kfilename);
 		return result;
 	}
 
@@ -72,11 +76,13 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 		}
 	}
 	if (i == OPEN_MAX) {
+		kfree(kfilename);
 		return EMFILE;
 	}
 
 	int err;
 	if((err = open(kfilename, flags, i))){
+		kfree(kfilename);
 		return err;
 	}
 
