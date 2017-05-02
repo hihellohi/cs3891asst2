@@ -97,29 +97,6 @@ proc_create(const char *name)
 		proc->descriptor_table[i] = NULL;
 	}
 
-	// if stack is full we are creating
-	// the kernel proc and cannot/do not
-	// need to acquire the lock
-	if (pid_stack_top != PID_MAX - 1) {
-		lock_acquire(pid_stack_lock);
-	}
-
-	// stack is empty - no pids free
-	if (pid_stack_top == -1) {
-		lock_release(pid_stack_lock);
-		kfree(proc->descriptor_table);
-		kfree(proc->p_name);
-		kfree(proc);
-		return NULL;
-	}
-
-	proc->pid = pid_stack[pid_stack_top];
-	pid_stack_top--;
-
-	if (pid_stack_top != PID_MAX - 2) {
-		lock_release(pid_stack_lock);
-	}
-
 	proc->p_numthreads = 0;
 	spinlock_init(&proc->p_lock);
 
@@ -129,7 +106,35 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	proc->pid = 0;
+
 	return proc;
+}
+
+static int proc_create_with_pid(struct proc **proc, const char *name){
+	*proc = proc_create(name);
+	if(*proc == NULL){
+		return ENOMEM;
+	}
+
+	// if stack is full we are creating
+	// the kernel proc and cannot/do not
+	// need to acquire the lock
+	lock_acquire(pid_stack_lock);
+
+	// stack is empty - no pids free
+	if (pid_stack_top == -1) {
+		lock_release(pid_stack_lock);
+		proc_destroy(*proc);
+		return ENPROC;
+	}
+
+	(*proc)->pid = pid_stack[pid_stack_top];
+	pid_stack_top--;
+
+	lock_release(pid_stack_lock);
+
+	return 0;
 }
 
 /*
@@ -238,9 +243,10 @@ proc_destroy(struct proc *proc)
 
 int sys_fork(struct trapframe *tf, int *ret){
 	//create new process
-	struct proc *newproc = proc_create(curproc->p_name);
-	if(!newproc){
-		return ENOMEM;
+	struct proc *newproc;
+	int result = proc_create_with_pid(&newproc, curproc->p_name);
+	if(result){
+		return result;
 	}
 
 	//create new descriptor table
@@ -254,7 +260,7 @@ int sys_fork(struct trapframe *tf, int *ret){
 	}
 
 	//copy over address space
-	int result = as_copy(curproc->p_addrspace, &newproc->p_addrspace);
+	result = as_copy(curproc->p_addrspace, &newproc->p_addrspace);
 	if(result){
 		proc_destroy(newproc);
 		return result;
@@ -305,6 +311,8 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+	kproc->pid = pid_stack[pid_stack_top];
+	pid_stack_top--;
 }
 
 /*
@@ -318,7 +326,7 @@ proc_create_runprogram(const char *name)
 {
 	struct proc *newproc;
 
-	newproc = proc_create(name);
+	proc_create_with_pid(&newproc, name);
 	if (newproc == NULL) {
 		return NULL;
 	}
