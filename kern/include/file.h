@@ -26,5 +26,6 @@ struct open_file {
 };
 
 void open_std(void);
+int close(int filehandler, struct proc *proc);
 
 #endif /* _FILE_H_ */

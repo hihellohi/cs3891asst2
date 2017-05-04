@@ -49,6 +49,30 @@ static int open(char *filename, int flags, int descriptor){
 	return 0;
 }
 
+int close(int filehandler, struct proc *proc) {
+	if(filehandler < 0 || filehandler >= OPEN_MAX || !proc->descriptor_table[filehandler]) {
+		return EBADF;
+	}
+
+	struct open_file *file = proc->descriptor_table[filehandler];
+
+	lock_acquire(file->lock_ptr);
+	proc->descriptor_table[filehandler] = NULL;
+	file->references -= 1;
+
+	if(!file->references) {
+		lock_release(file->lock_ptr); //This is the last reference to this open file
+		vfs_close(file->v_ptr);
+		lock_destroy(file->lock_ptr);
+		kfree(file);
+	}
+	else{
+		lock_release(file->lock_ptr);
+	}
+
+	return 0;
+}
+
 void open_std(void) {
 	char con1[] = "con:", con2[] = "con:";
 	KASSERT(open(con1, O_WRONLY, 1) == 0); 
@@ -92,27 +116,7 @@ int sys_open(userptr_t filename, int flags, int *ret) {
 }
 
 int sys_close(int filehandler) {
-	if(filehandler < 0 || filehandler >= OPEN_MAX || !curproc->descriptor_table[filehandler]) {
-		return EBADF;
-	}
-
-	struct open_file *file = curproc->descriptor_table[filehandler];
-
-	lock_acquire(file->lock_ptr);
-	curproc->descriptor_table[filehandler] = NULL;
-	file->references -= 1;
-
-	if(!file->references) {
-		lock_release(file->lock_ptr); //This is the last reference to this open file
-		vfs_close(file->v_ptr);
-		lock_destroy(file->lock_ptr);
-		kfree(file);
-	}
-	else{
-		lock_release(file->lock_ptr);
-	}
-
-	return 0;
+	return close(filehandler, curproc);
 }
 
 int sys_read(int filehandler, userptr_t buf, size_t size, int *ret) {
