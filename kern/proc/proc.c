@@ -45,6 +45,7 @@
 #include <types.h>
 #include <spl.h>
 #include <proc.h>
+#include <file.h>
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
@@ -174,7 +175,7 @@ proc_destroy(struct proc *proc)
 	if (proc->descriptor_table) {
 		for(int i = 0; i < OPEN_MAX; i++) {
 			if (proc->descriptor_table[i] != NULL) {
-				sys_close(i);
+				close(i, proc);
 			}
 		}
 		kfree(proc->descriptor_table);
