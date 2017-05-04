@@ -274,7 +274,6 @@ int sys_fork(struct trapframe *tf, int *ret){
 	//copy trapframe
 	struct trapframe *newtf = kmalloc(sizeof(struct trapframe));
 	if(!newtf){
-		VOP_DECREF(curproc->p_cwd);
 		proc_destroy(newproc);
 		return ENOMEM;
 	}
