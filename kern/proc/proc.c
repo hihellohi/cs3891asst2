@@ -117,9 +117,6 @@ static int proc_create_with_pid(struct proc **proc, const char *name){
 		return ENOMEM;
 	}
 
-	// if stack is full we are creating
-	// the kernel proc and cannot/do not
-	// need to acquire the lock
 	lock_acquire(pid_stack_lock);
 
 	// stack is empty - no pids free
@@ -157,13 +154,6 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc != NULL);
 	KASSERT(proc != kproc);
 
-	for(int i = 0; i < OPEN_MAX; i++) {
-		if (proc->descriptor_table[i] != NULL) {
-			sys_close(i);
-		}
-	}
-	kfree(proc->descriptor_table);
-
 	lock_acquire(pid_stack_lock);
 
 	// check stack is not full
@@ -179,6 +169,16 @@ proc_destroy(struct proc *proc)
 	 * reference to this structure. (Otherwise it would be
 	 * incorrect to destroy it.)
 	 */
+
+	/* File discriptor table */
+	if (proc->descriptor_table) {
+		for(int i = 0; i < OPEN_MAX; i++) {
+			if (proc->descriptor_table[i] != NULL) {
+				sys_close(i);
+			}
+		}
+		kfree(proc->descriptor_table);
+	}
 
 	/* VFS fields */
 	if (proc->p_cwd) {
