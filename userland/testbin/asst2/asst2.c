@@ -33,8 +33,21 @@ main(int argc, char * argv[])
                 exit(1);
         }
 
+		int fd2 = dup2(-10, fd);
+		if(fd2 != -1){
+			printf("you fucked up\n");
+		}
+		printf("dup2 successfully failed!\n");
+
+		fd2 = dup2(fd, 3);
+		if(fd2 < 0){
+			printf("you fucked up\n");
+            printf("ERROR writing file: %s\n", strerror(errno));
+			exit(1);
+		}
+
         printf("* writing test string\n");
-        r = write(fd, teststr, strlen(teststr));
+        r = write(fd2, teststr, strlen(teststr));
         printf("* wrote %d bytes\n", r);
         if (r < 0) {
                 printf("ERROR writing file: %s\n", strerror(errno));
@@ -48,16 +61,43 @@ main(int argc, char * argv[])
                 printf("ERROR writing file: %s\n", strerror(errno));
                 exit(1);
         }
-        printf("* closing file\n");
-        close(fd);
+
+        printf("*using dup2 to closing file\n");
+		if(dup2(fd2, fd) < 0 ||  close(fd) < 0){
+			printf("you fucked up");
+			exit(1);
+		}
+        //printf("* closing file\n");
+        //close(fd);
+
+        printf("* writing test string again\n");
+        r = write(fd, teststr, strlen(teststr));
+        printf("*attempted to write %d bytes\n", r);
+        if (r >= 0) {
+                printf("you were suppposed to fuck up\n");
+                exit(1);
+        }
+
+        printf("* writing test string one more\n");
+        r = write(fd2, teststr, strlen(teststr));
+        printf("* wrote %d bytes\n", r);
+        if (r < 0) {
+                printf("ERROR writing file: %s\n", strerror(errno));
+                exit(1);
+        }
+
 
         printf("**********\n* opening old file \"test.file\"\n");
-        fd = open("test1.file", O_RDONLY);
+        fd = open("test.file", O_RDONLY);
         printf("* open() got fd %d\n", fd);
         if (fd < 0) {
                 printf("ERROR opening file: %s\n", strerror(errno));
                 exit(1);
         }
+
+		fd2 = dup2(fd, 5);
+		close(fd);
+		fd = fd2;
 
         printf("* reading entire file into buffer \n");
         i = 0;
