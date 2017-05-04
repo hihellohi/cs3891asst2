@@ -76,6 +76,7 @@ proc_create(const char *name)
 
 	proc->descriptor_table = kmalloc(sizeof(struct descriptor*) * OPEN_MAX);
 	if (proc->descriptor_table == NULL) {
+		kfree(proc->p_name);
 		kfree(proc);
 		return NULL;
 	}
@@ -121,6 +122,16 @@ proc_destroy(struct proc *proc)
 	 * reference to this structure. (Otherwise it would be
 	 * incorrect to destroy it.)
 	 */
+
+	/* File discriptor table */
+	if (proc->descriptor_table) {
+		for(int i = 0; i < OPEN_MAX; i++) {
+			if (proc->descriptor_table[i] != NULL) {
+				sys_close(i);
+			}
+		}
+		kfree(proc->descriptor_table);
+	}
 
 	/* VFS fields */
 	if (proc->p_cwd) {
