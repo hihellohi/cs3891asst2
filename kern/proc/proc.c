@@ -280,23 +280,20 @@ int sys_fork(struct trapframe *tf, int *ret){
 	memcpy(newtf, tf, sizeof(struct trapframe));
 
 	//parent returns child pid
-	*ret = newproc->pid;
+	*ret = 100;
 
 	//child returns 0
 	newtf->tf_v0 = 0;
 	newtf->tf_epc = tf->tf_ra;
 
 	//fork
-	result = thread_fork(
-					curthread->t_name, 
-					newproc, 
-					(void (*)(void *, long unsigned int))enter_forked_process, 
-					newtf, 0);
-	if(result) {
-		kfree(newtf);
-		proc_destroy(newproc);
-		return result;
-	}
+	/* result = thread_fork( */
+	/* 				curthread->t_name, */ 
+	/* 				newproc, */ 
+	/* 				(void (*)(void *, long unsigned int))enter_forked_process, */ 
+	/* 				newtf, 0); */
+	kfree(newtf);
+	proc_destroy(newproc);
 
 	return 0;
 }

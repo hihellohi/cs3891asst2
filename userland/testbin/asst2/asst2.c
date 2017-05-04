@@ -123,11 +123,19 @@ main(int argc, char * argv[])
         close(fd);
         printf("process id: %d\n", getpid());
 
-		int forkerino;
-		if((forkerino = fork())){
-			printf("hello, i am proccess %d\n", forkerino);
+        printf("%d Forkerino onceinerino\n", getpid());
+		int forkerino = fork();
+		if(forkerino){
+			printf("%d %d forked\n", getpid(), forkerino);
 		}else{
-			printf("world\n");
+			printf("%d I am child process\n", getpid());
+		}
+        printf("%d Forkerino againerino\n", getpid());
+
+		if((forkerino = fork())){
+			printf("%d %d forked again\n", getpid(), forkerino);
+		}else{
+			printf("%d I am again child process\n", getpid());
 		}
 		while(1);
 		return 0;
